@@ -229,26 +229,6 @@ def generate_placement_input(num_macros, num_std_cells):
 
 # ======= OPTIMIZATION CODE (edit this part) =======
 
-# def _wirelength_attraction_loss_from_positions(
-#     cell_positions, pin_cell_indices, pin_offsets, edge_list
-# ):
-#     """Wirelength loss computed directly from cell positions."""
-#     if edge_list.shape[0] == 0:
-#         return cell_positions.sum() * 0.0
-
-#     pin_absolute = cell_positions[pin_cell_indices] + pin_offsets
-
-#     src_pins = edge_list[:, 0].long()
-#     tgt_pins = edge_list[:, 1].long()
-
-#     dx = torch.abs(pin_absolute[src_pins, 0] - pin_absolute[tgt_pins, 0])
-#     dy = torch.abs(pin_absolute[src_pins, 1] - pin_absolute[tgt_pins, 1])
-
-#     alpha = 0.1
-#     smooth_manhattan = alpha * torch.logaddexp(dx / alpha, dy / alpha)
-#     return smooth_manhattan.mean()
-
-
 def wirelength_attraction_loss(cell_features, pin_features, edge_list):
     """Calculate loss based on total wirelength to minimize routing.
 
@@ -283,80 +263,6 @@ def wirelength_attraction_loss(cell_features, pin_features, edge_list):
     alpha = 0.1
     smooth_manhattan = alpha * torch.logaddexp(dx / alpha, dy / alpha)
     return smooth_manhattan.mean()
-    
-    # return _wirelength_attraction_loss_from_positions(
-    #     cell_positions, pin_cell_indices, pin_offsets, edge_list
-    # )
-
-# def _overlap_repulsion_loss_from_components(x, y, w, h):
-#     """Differentiable overlap penalty from position/size tensors."""
-#     N = x.shape[0]
-#     if N <= 1:
-#         return x.sum() * 0.0
-
-#     # Small designs: exact all-pairs overlap
-#     if N <= 2000:
-#         dx = torch.abs(x.unsqueeze(1) - x.unsqueeze(0))
-#         dy = torch.abs(y.unsqueeze(1) - y.unsqueeze(0))
-#         min_sep_x = 0.5 * (w.unsqueeze(1) + w.unsqueeze(0))
-#         min_sep_y = 0.5 * (h.unsqueeze(1) + h.unsqueeze(0))
-
-#         overlap_x = torch.relu(min_sep_x - dx)
-#         overlap_y = torch.relu(min_sep_y - dy)
-#         overlap_area = overlap_x * overlap_y
-
-#         mask = torch.triu(
-#             torch.ones((N, N), dtype=torch.bool, device=x.device),
-#             diagonal=1,
-#         )
-#         ov_x = overlap_x[mask]
-#         ov_y = overlap_y[mask]
-#         ov_area = overlap_area[mask]
-#         if ov_area.numel() == 0:
-#             return x.sum() * 0.0
-
-#         active = (ov_x > 0) & (ov_y > 0)
-#         if not torch.any(active):
-#             return x.sum() * 0.0
-
-#         # Penetration term drives separation along the easier axis;
-#         # area term penalizes deep overlaps.
-#         penetration = torch.minimum(ov_x[active], ov_y[active])
-#         return torch.mean(penetration**2 + 0.5 * ov_area[active])
-
-#     # Large designs: local neighbor pairs in x-sorted order
-#     if N <= 20000:
-#         k = 48
-#     elif N <= 50000:
-#         k = 24
-#     else:
-#         k = 12
-#     k = min(k, N - 1)
-
-#     order = torch.argsort(x)
-#     x_s, y_s, w_s, h_s = x[order], y[order], w[order], h[order]
-
-#     base = torch.arange(N - k, device=x.device).unsqueeze(1)
-#     offs = torch.arange(1, k + 1, device=x.device).unsqueeze(0)
-#     i_s = base.expand(-1, k).reshape(-1)
-#     j_s = (base + offs).reshape(-1)
-
-#     dx = torch.abs(x_s[i_s] - x_s[j_s])
-#     dy = torch.abs(y_s[i_s] - y_s[j_s])
-
-#     min_sep_x = 0.5 * (w_s[i_s] + w_s[j_s])
-#     min_sep_y = 0.5 * (h_s[i_s] + h_s[j_s])
-
-#     overlap_x = torch.relu(min_sep_x - dx)
-#     overlap_y = torch.relu(min_sep_y - dy)
-#     ov_area = overlap_x * overlap_y
-
-#     active = (overlap_x > 0) & (overlap_y > 0)
-#     if not torch.any(active):
-#         return x.sum() * 0.0
-
-#     penetration = torch.minimum(overlap_x[active], overlap_y[active])
-#     return torch.mean(penetration**2 + 0.5 * ov_area[active])
 
 
 def overlap_repulsion_loss(cell_features, pin_features, edge_list):
