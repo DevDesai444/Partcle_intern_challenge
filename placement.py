@@ -229,7 +229,12 @@ def generate_placement_input(num_macros, num_std_cells):
 
 # ======= OPTIMIZATION CODE (edit this part) =======
 
-def wirelength_attraction_loss(cell_features, pin_features, edge_list):
+def wirelength_attraction_loss(
+    cell_features_or_positions,
+    pin_features_or_cell_indices,
+    edge_list_or_pin_offsets,
+    maybe_edge_list=None,
+):
     """Calculate loss based on total wirelength to minimize routing.
 
     This is a REFERENCE IMPLEMENTATION showing how to write a differentiable loss function.
@@ -237,18 +242,26 @@ def wirelength_attraction_loss(cell_features, pin_features, edge_list):
     The loss computes the Manhattan distance between connected pins and minimizes
     the total wirelength across all edges.
 
-    Args:
-        cell_features: [N, 6] tensor with [area, num_pins, x, y, width, height]
-        pin_features: [P, 7] tensor with pin information
-        edge_list: [E, 2] tensor with edges
+    Supports two call styles:
+        1) wirelength_attraction_loss(cell_features, pin_features, edge_list)
+        2) wirelength_attraction_loss(cell_positions, pin_cell_indices, pin_offsets, edge_list)
 
     Returns:
         Scalar loss value
     """
-    cell_positions = cell_features[:, 2:4]
-    pin_cell_indices = pin_features[:, 0].long()
-    pin_offsets = pin_features[:, 1:3]
-    
+    if maybe_edge_list is None:
+        cell_features = cell_features_or_positions
+        pin_features = pin_features_or_cell_indices
+        edge_list = edge_list_or_pin_offsets
+        cell_positions = cell_features[:, 2:4]
+        pin_cell_indices = pin_features[:, 0].long()
+        pin_offsets = pin_features[:, 1:3]
+    else:
+        cell_positions = cell_features_or_positions
+        pin_cell_indices = pin_features_or_cell_indices.long()
+        pin_offsets = edge_list_or_pin_offsets
+        edge_list = maybe_edge_list
+
     if edge_list.shape[0] == 0:
         return cell_positions.sum() * 0.0
 
@@ -265,11 +278,29 @@ def wirelength_attraction_loss(cell_features, pin_features, edge_list):
     return smooth_manhattan.mean()
 
 
-def overlap_repulsion_loss(cell_features, pin_features, edge_list):
-    x = cell_features[:, CellFeatureIdx.X]
-    y = cell_features[:, CellFeatureIdx.Y]
-    w = cell_features[:, CellFeatureIdx.WIDTH]
-    h = cell_features[:, CellFeatureIdx.HEIGHT]
+def overlap_repulsion_loss(
+    cell_features_or_x,
+    pin_features_or_y=None,
+    edge_list_or_w=None,
+    maybe_h=None,
+):
+    """Differentiable overlap penalty.
+
+    Supports two call styles:
+        1) overlap_repulsion_loss(cell_features, pin_features, edge_list)
+        2) overlap_repulsion_loss(x, y, w, h)
+    """
+    if maybe_h is None:
+        cell_features = cell_features_or_x
+        x = cell_features[:, CellFeatureIdx.X]
+        y = cell_features[:, CellFeatureIdx.Y]
+        w = cell_features[:, CellFeatureIdx.WIDTH]
+        h = cell_features[:, CellFeatureIdx.HEIGHT]
+    else:
+        x = cell_features_or_x
+        y = pin_features_or_y
+        w = edge_list_or_w
+        h = maybe_h
     
     N = x.shape[0]
     if N <= 1:
