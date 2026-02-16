@@ -235,20 +235,6 @@ def wirelength_attraction_loss(
     edge_list_or_pin_offsets,
     maybe_edge_list=None,
 ):
-    """Calculate loss based on total wirelength to minimize routing.
-
-    This is a REFERENCE IMPLEMENTATION showing how to write a differentiable loss function.
-
-    The loss computes the Manhattan distance between connected pins and minimizes
-    the total wirelength across all edges.
-
-    Supports two call styles:
-        1) wirelength_attraction_loss(cell_features, pin_features, edge_list)
-        2) wirelength_attraction_loss(cell_positions, pin_cell_indices, pin_offsets, edge_list)
-
-    Returns:
-        Scalar loss value
-    """
     if maybe_edge_list is None:
         cell_features = cell_features_or_positions
         pin_features = pin_features_or_cell_indices
@@ -284,12 +270,6 @@ def overlap_repulsion_loss(
     edge_list_or_w=None,
     maybe_h=None,
 ):
-    """Differentiable overlap penalty.
-
-    Supports two call styles:
-        1) overlap_repulsion_loss(cell_features, pin_features, edge_list)
-        2) overlap_repulsion_loss(x, y, w, h)
-    """
     if maybe_h is None:
         cell_features = cell_features_or_x
         x = cell_features[:, CellFeatureIdx.X]
